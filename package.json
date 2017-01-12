@@ -14,12 +14,16 @@
     "action",
     "creators",
     "API",
-    "namespace"
+    "namespace",
+    "dispatch"
   ],
-  "author": "Paul Spaulding",
+  "author": "Paul Spaulding <pjs67123@gmail.com>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/pspaulding/create-redux-module/issues"
   },
-  "homepage": "https://github.com/pspaulding/create-redux-module#readme"
+  "homepage": "https://github.com/pspaulding/create-redux-module#readme",
+  "dependencies": {
+    "lodash.snakecase": "^4.1.1"
+  }
 }
