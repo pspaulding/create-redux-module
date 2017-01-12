@@ -121,6 +121,8 @@ export default rootReducer;
 ```
 
 ```javascript
+// modules/store.js
+
 import {createStore, applyMiddleware, compose} from 'redux';
 import thunk from 'redux-thunk';
 import rootReducer from './reducers';
