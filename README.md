@@ -59,3 +59,144 @@ const module = createModule(schema, initialState = null, namespace = '');
 }
 */
 ```
+
+Example
+---
+
+Given a directory layout:
+```javascript
+index.js
+    /modules
+        /reducers
+            counter.js
+            index.js
+    store.js
+    /components
+        /Counter
+            index.js
+            Container.js
+        App.js
+```
+
+```javascript
+// modules/reducers/counter.js
+
+import createModule from 'create-redux-module';
+
+const initialState = 0;
+
+const schema = {
+    setCounter: (state, action) => action.payload
+
+    ,decrement: (state, action) => state - action.payload
+
+    ,increment: (state, action) => state + action.payload
+
+    ,incrementAsync: [
+        function (amount) {
+            const increment = this.actions.increment;
+            return function(dispatch) {
+                setTimeout(()=>dispatch(increment(amount)), 1000);
+            }
+        }
+    ]
+};
+
+export const counter = createModule(schema, initialState);
+```
+
+```javascript
+// modules/reducers/index.js
+
+import {combineReducers} from 'redux';
+import {counter} from './counter';
+// ... other modules
+
+const rootReducer = combineReducers({
+  counter: counter.reducer
+  // other reducers
+});
+
+export default rootReducer;
+```
+
+```javascript
+import {createStore, applyMiddleware, compose} from 'redux';
+import thunk from 'redux-thunk';
+import rootReducer from './reducers';
+
+const configureStore = (initialState = {}) => {
+
+    const middleware = [
+        thunk
+    ];
+
+    const composeEnhancers =
+        window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
+
+    const store = createStore(
+        rootReducer
+        ,initialState
+        ,composeEnhancers(applyMiddleware(...middleware))
+    );
+
+    return store;
+};
+
+export default configureStore;
+```
+
+```javascript
+// components/Counter/index.js
+
+import React from 'react';
+
+const Counter = ({count, decrement, increment, incrementAsync}) => (
+    <div>
+        <h2>Counter</h2>
+        <div>count: {count}</div>
+        <div>
+            <button onClick={()=>decrement(1)}>decrement</button>
+            <button onClick={()=>increment(1)}>increment</button>
+            <button onClick={()=>incrementAsync(1)}>increment async</button>
+        </div>
+    </div>
+);
+
+export default Counter;
+```
+
+```javascript
+// components/Counter/Container.js
+
+import {connect} from 'react-redux';
+import {counter} from '../../modules/reducers/counter';
+import Counter from '.';
+
+const mapStateToProps = state => ({
+    count: state.counter
+})
+
+const Container = connect(
+    mapStateToProps
+    ,counter.mapDispatch()
+    )(Counter);
+
+export default Container;
+```
+
+```javascript
+// components/App.js
+
+import React from 'react';
+import {Provider} from 'react-redux';
+import Counter from './Counter/Container';
+
+const App = ({store}) => (
+    <Provider store={store}>
+        <Counter />
+    </Provider>
+);
+
+export default App;
+```
