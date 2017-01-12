@@ -1,48 +1,61 @@
+Given a schema:
 ```javascript
 schema: {
-  decrement: (state, action) => state - 1
-  ,increment: [
-    function (amount) {
-      return {type: this.type, amount};
+  // shortcut map an action to a reducer
+  // the action arguments will be mapped to the payload:
+  //    one argument => payload = argument
+  //    more than one argument => payload = [arguments]
+  // actionCreator will default to:
+  // (...args) => ({type:namespace/ACTION_NAME, payload})
+  actionName1: (state, action) => {}
+
+  // long version if actionCreator needs logic or needs to do
+  // multiple dispatches, thunks, or call other actions
+  ,actionName2: [
+    // action creator
+    // this must be a function expression (arrow functions will not work)
+    // in order to access bound values:
+    // {
+    //   namespace    (if provided)
+    //   ,baseType    (ACTION_NAME)
+    //   ,type        (namespace/ACTION_NAME)
+    //   ,actionName  (as provided)
+    //   ,actions     (ref to other schema actions for additional dispatching)
+    // }
+    function (arguments) {
+      return {type: this.type, payload};
     }
-    ,(state, action) => state + action.payload
+    // handler
+    ,(state, action) => {}
+    // if actionCreator or handler are null, they will default as above
   ]
-}
-initialState: defaults to null
-```
 
-- each schema key will become the name of an action (creator) that can
-    be used in the UI
-- a namespaced actionType will be created for each action
-- if <actionName>: handler
-    - the actionCreator will default to:
-        <actionName> = (...args) => ({type:ACTION_TYPE, payload:...args})
-    - if handler is null, it will default to (state, action) => state
-- else if <actionName>: [actionCreator, handler]
+  // API object
+  ,actionName3: {
+    endpoint (required, string or function(args) {return endpoint;})
+    ,method: (defaults to get)
+    ,mapArgs: (defaults to (data) => data)
+    ,success: (if provided, will be wrapped with an action return)
+    ,failure: (if provided, will be wrapped with an action return)
+  }
 
-    - if actionCreator or handler are null, they will default
-    as above
-
-    If actionCreator is supplied, the type can be accessed as this.type
-    as long as the actionCreator is a function expression (will not
-    work with arrow functions).
-
-- else if <actionName>: {api object with endpoint property}
-```javascript
-api object: {
-  endpoint (required, string or function(args) {return endpoint;})
-  ,method: (defaults to get)
-  ,mapArgs: (defaults to (data) => data)
-  ,success: (if provided, will be wrapped with an action return)
-  ,failure: (if provided, will be wrapped with an action return)
+  // Promise object
+  ,actionName4: {
+    promise (required)
+    ,success: (if provided, will be wrapped with an action return)
+    ,failure: (if provided, will be wrapped with an action return)
+  }
 }
 ```
 
-returns:
+Call createModule as follows:
 ```javascript
+const module = createModule(schema, initialState = null, namespace = '');
+/*
 {
   actions
   ,reducer
   ,mapDispatch
 }
+*/
 ```
