@@ -1,3 +1,7 @@
+Short-term TODOs:
+- [ ] API object is currently disabled while I refactor to make more generic
+- [ ] Better documentation
+
 Given a schema:
 ```javascript
 schema: {
