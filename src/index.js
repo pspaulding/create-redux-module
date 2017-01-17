@@ -1,35 +1,159 @@
 import snakeCase from 'lodash.snakecase';
+import assert from 'assert';
 
 const actionCase = (actionName) => snakeCase(actionName).toUpperCase();
 
-const createModule = (schema = {}, initialState = null, namespace = '') => {
+const createActionCreator = actionType => (...args) => {
+    const hasError = args[0] instanceof Error;
+    const action = {type: actionType};
+    const payload = hasError ? args[0] : args;
+    if (payload !== void 0) {
+        action.payload = payload.length == 1
+            ? payload[0]
+            : payload;
+    }
+    if (hasError) action.error = true;
+    return action;
+};
 
-    var actions = {};
-    var handlers = {};
+function createSchemaPromiseEntry(def, actionName, actions) {
+    return [
+        function (def, actionName, actions, ...args) {
+            return function (dispatch) {
+                dispatch(actions[actionName + 'Pending'](args));
+                return def.promise(...args)
+                    .then(res => dispatch(actions[actionName + 'Success'](res)))
+                    .catch(err => dispatch(actions[actionName + 'Failure'](err)));
+            }
+        }.bind(null, def, actionName, actions)
+    ];
+}
+
+function createSchemaPendingEntry() {
+    return (state, action) => Object.assign(
+        {}
+        ,state
+        ,{
+            pending: true
+            ,data: action.payload
+            ,error: null
+        }
+    );
+}
+
+function forcePendingToFalse(def) {
+    if (typeof def == 'function') {
+        return (...args) => {
+            let result = def(...args);
+            result.pending = false;
+            return result;
+        };
+    } else if (Array.isArray(def) && typeof def[1] == 'function') {
+        return [
+            def[0]
+            ,(...args) => {
+                let result = def[1](...args);
+                result.pending = false;
+                return result;
+            }
+        ];
+    }
+
+    return def;
+}
+
+function createSchemaSuccessEntry(def, successActionName) {
+    if (def.success) {
+        return forcePendingToFalse(def.success);
+    }
+
+    return [
+        function (type, result) {
+            let action = {type, payload: result, pending: false, error: null};
+            return action;
+        }.bind(
+            null
+            ,actionCase(successActionName)
+        )
+
+        ,(state, action) => Object.assign(
+            {}
+            ,state
+            ,{
+                pending: false
+                ,data: action.payload
+                ,error: action.error
+            }
+        )
+    ];
+}
+
+function createSchemaFailureEntry(def, failureActionName) {
+    if (def.failure) {
+        return forcePendingToFalse(def.failure);
+    }
+
+    return [
+        function (type, error) {
+            let action = {type, pending:false, error};
+            return action;
+        }.bind(
+            null
+            ,actionCase(failureActionName)
+        )
+
+        ,(state, action) => Object.assign(
+            {}
+            ,state
+            ,{
+                pending: false
+                ,error: action.error
+            }
+        )
+    ];
+}
+
+/* deprecated 1.0 syntax */
+// const createModule = (schema = {}, initialState = null, namespace = '') => {
+const createModule = (moduleName, schema = {}, initialState = null, namespaceActions = false) => {
+
+    if (typeof moduleName == 'object') {
+        console.warn('createModule was called with what appears to be'
+            + ' the deprecated 1.x signature (schema [, initalState , namespace]).'
+            + ' Please update usage to the new format (moduleName, schema [, initialState, namespaceActions])'
+            + ' before the next major release of create-redux-module.'
+            + ' Attempting to convert to new format.'
+        );
+        let map = {
+            schema: moduleName
+            ,initialState: schema
+            ,namespaceActions: typeof initialState == 'string'
+            ,moduleName: typeof initialState == 'string'
+                ? initialState
+                : 'unknown_module'
+        };
+        moduleName = map.moduleName;
+        schema = map.schema;
+        initialState = map.initialState;
+        namespaceActions = map.namespaceActions;
+    }
+
+    let actions = {};
+    let handlers = {};
 
     function createActionHandler(actionName) {
         let baseType = actionCase(actionName);
 
-        let actionType = namespace == ''
-            ? baseType
-            : namespace + '/' + baseType;
+        let actionType = namespaceActions === true
+            || (Array.isArray(namespaceActions)
+                && namespaceActions.indexOf(actionName) > -1)
+            ? moduleName + '/' + baseType
+            : baseType;
 
-        var actionCreator = (...args) => {
-            const hasError = args[0] instanceof Error;
-            const action = {type: actionType};
-            const payload = hasError ? args[0] : args;
-            if (payload !== void 0) {
-                action.payload = payload.length == 1
-                    ? payload[0]
-                    : payload;
-            }
-            if (hasError) action.error = true;
-            return action;
-        };
+        let actionCreator = createActionCreator(actionType);
+        let handler = (state, action) => state;
 
-        var handler = (state, action) => state;
-
-        var def = schema[actionName];
+        let def = schema[actionName];
         if (def === null) {
             // default as above
         } else if (typeof def == 'function') {
@@ -37,123 +161,31 @@ const createModule = (schema = {}, initialState = null, namespace = '') => {
         } else if (Array.isArray(def)) {
             actionCreator = def[0] || actionCreator;
             handler = def[1] || handler;
-        } else if (typeof def == 'object'
-            && (def.endpoint || def.promise)
-        ) {
-
-            if (def.endpoint) {
-                // API call
-                schema[actionName] = [
-                    function (def, actionName, actions, ...args) {
-                        var data = def.mapArgs
-                            ? def.mapArgs(...args)
-                            : args[0];
-
-                        var endpoint = typeof def.endpoint == 'function'
-                            ? def.endpoint(...args)
-                            : def.endpoint;
-
-                        return function (dispatch) {
-                            dispatch(actions[actionName + 'Request']());
-                            if (typeof http == 'undefined') {
-                                throw new Error('http service needs to be implemented');
-                            }
-                            return http[def.method || 'get'](
-                                    endpoint
-                                    ,data
-                                )
-                                .then(res => dispatch(actions[actionName + 'Success'](res)))
-                                .catch(err => dispatch(actions[actionName + 'Failure'](err)));
-                        }
-                    }.bind(null, def, actionName, actions)
-                ];
-            } else {
-                // promise
-                schema[actionName] = [
-                    function (def, actionName, actions, ...args) {
-
-                        return function (dispatch) {
-                            dispatch(actions[actionName + 'Request']());
-                            return def.promise(...args)
-                                .then(res => dispatch(actions[actionName + 'Success'](res)))
-                                .catch(err => dispatch(actions[actionName + 'Failure'](err)));
-                        }
-                    }.bind(null, def, actionName, actions)
-                ];
-            }
+        } else if (typeof def == 'object' && def.promise) {
+            schema[actionName] = createSchemaPromiseEntry(def, actionName, actions);
             createActionHandler(actionName);
 
-            schema[actionName + 'Request'] =
-                (state, action) => Object.assign({}, state, {loading: true, error: null});
-            createActionHandler(actionName + 'Request');
+            let requestActionName = actionName + 'Pending';
+            schema[requestActionName] = createSchemaPendingEntry();
+            createActionHandler(requestActionName);
 
-            schema[actionName + 'Success'] = [
-                function (type, success, result) {
-                    var action = {type, payload: result, error: null};
-                    if (success) {
-                        var evalSuccess = success(result);
-                        if (typeof evalSuccess == 'object') {
-                            if (evalSuccess.payload !== void 0) {
-                                action.payload = evalSuccess.payload;
-                            }
-                            if (evalSuccess.error !== void 0) {
-                                action.error = evalSuccess.error;
-                            }
-                            if (evalSuccess.meta !== void 0) {
-                                action.meta = evalSuccess.meta;
-                            }
-                        }
-                    }
-                    return action;
-                }.bind(
-                    null
-                    ,actionCase(actionName + 'Success')
-                    ,def.success
-                )
+            let successActionName = actionName + 'Success';
+            schema[successActionName] = createSchemaSuccessEntry(def, successActionName);
+            createActionHandler(successActionName);
 
-                ,(state, action) =>
-                    Object.assign({}, state, {loading: false, data: action.payload, error: action.error})
-            ];
-            createActionHandler(actionName + 'Success');
-
-            schema[actionName + 'Failure'] = [
-                function (type, failure, error) {
-                    var action = {type, error};
-                    failure && failure(error);
-                    if (failure) {
-                        var evalFailure = failure(error);
-                        if (typeof evalFailure == 'object') {
-                            if (evalFailure.payload !== void 0) {
-                                action.payload = evalFailure.payload;
-                            }
-                            if (evalFailure.error !== void 0) {
-                                action.error = evalFailure.error;
-                            }
-                            if (evalFailure.meta !== void 0) {
-                                action.meta = evalFailure.meta;
-                            }
-                        }
-                    }
-                    return action;
-                }.bind(
-                    null
-                    ,actionCase(actionName + 'Failure')
-                    ,def.failure
-                )
-
-                ,(state, action) =>
-                    Object.assign({}, state, {loading: false, error: action.error})
-            ];
-            createActionHandler(actionName + 'Failure');
+            let failureActionName = actionName + 'Failure';
+            schema[failureActionName] = createSchemaFailureEntry(def, failureActionName);
+            createActionHandler(failureActionName);
 
             return;
         } else {
             throw new Error('Incorrect schema format, ['
-                + actionName + '] must be a handlerFn, array, API object, or null');
+                + actionName
+                + '] must be a handlerFn, array, API object, Promise object, or null');
         }
 
         actions[actionName] = actionCreator.bind({
-            namespace
+            moduleName
             ,baseType
             ,type: actionType
             ,actionName
@@ -167,16 +199,34 @@ const createModule = (schema = {}, initialState = null, namespace = '') => {
 
     Object.keys(schema).forEach(createActionHandler);
 
-    var reducer = (state = initialState, action) => {
+    let reducer = (state = initialState, action) => {
         const handler = handlers[action.type];
         return handler ? handler(state, action) : state;
     };
 
-    return {
+    // sas = [initialState, action, newState]
+    let test = (...sas) => {
+        sas.forEach(([initialState, action, newState]) => {
+            assert.deepEqual(
+                reducer(initialState, action)
+                ,newState
+                ,'reducer'
+                    + `(${JSON.stringify(initialState)}`
+                    + `, ${JSON.stringify(action)}) !== `
+                    + `${JSON.stringify(newState)}`
+                );
+        });
+    };
+
+    let module = {
         actions
         ,reducer
         ,mapDispatch: mapDispatch.bind(null, actions)
-    }
+        ,test
+    };
+    module.toString = () => moduleName.toString();
+
+    return module;
 };
 
 export default createModule;
@@ -206,3 +256,36 @@ export const mapDispatch =
             });
             return actionMap;
         };
+
+export const modulesToReducers = modules => {
+
+    let reducers = {};
+    for (let m in modules) {
+        reducers[m] = modules[m].reducer;
+
+        window[m] = {};
+        Object.keys(modules[m].actions).forEach(actionName => {
+            window[m][actionName] = function (...args) {
+                if (window.store) {
+                    let initialState = store.getState()[m];
+                    let action = modules[m].actions[actionName](...args);
+                    window.store.dispatch(action);
+                    let newState = store.getState()[m];
+                    // use this for quick built-in tests :)
+                    console.log(
+                        `[${JSON.stringify(initialState)}`
+                        + `, ${JSON.stringify(action)}`
+                        + `, ${JSON.stringify(newState)}]`
+                    );
+                } else {
+                    console.warn('Unable to dispatch actions from console.'
+                        + ' Please attach the store to the window object'
+                        + ' when initializing the store (window.store = store)'
+                        + ' during development.'
+                    );
+                }
+            };
+        });
+    }
+    return reducers;
+};
