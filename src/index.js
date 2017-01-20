@@ -146,6 +146,10 @@ const createModule = (moduleName, schema = {}, initialState = null, namespaceAct
     function createActionHandler(actionName) {
         let baseType = actionCase(actionName);
 
+        if (typeof namespaceActions == 'string') {
+            namespaceActions = [namespaceActions];
+        }
+
         let actionType = namespaceActions === true
             || (Array.isArray(namespaceActions)
                 && namespaceActions.indexOf(actionName) > -1)

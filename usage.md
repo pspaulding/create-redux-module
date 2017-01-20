@@ -1,4 +1,4 @@
-If you are unfamiliar with redux, then why are you here? Checkout [redux](http://redux.js.org/) and come back when done.
+If you are unfamiliar with redux, then why are you here? Check out [redux](http://redux.js.org/) and come back when done.
 
 Installation
 ---
@@ -75,15 +75,19 @@ Install packages:
 npm install redux react-redux redux-thunk create-redux-module --save
 ```
 
-Create a rootReducer at src/components/reducer.js:
+Create a rootReducer:
 ```javascript
+// src/components/reducer.js
+
 const rootReducer = state => state; // placeholder
 
 export default rootReducer;
 ```
 
-Create the store at src/components/store.js:
+Create the store:
 ```javascript
+// src/components/store.js
+
 import {createStore, applyMiddleware, compose} from 'redux';
 import thunk from 'redux-thunk';
 import rootReducer from './reducer';
@@ -114,8 +118,10 @@ Notice that we've attached the redux store to the window object. This is for dev
 
 I've also included the awesome [chrome redux devtools](https://chrome.google.com/webstore/detail/redux-devtools/lmhkpmbekcpmknklioeibfkpmmfibljd?hl=en) in this store config.
 
-Edit src/index.js:
+Edit the index file:
 ```javascript
+// src/index.js
+
 import React from 'react';
 import ReactDOM from 'react-dom';
 import App from './App';
@@ -130,8 +136,10 @@ ReactDOM.render(
 );
 ```
 
-Replace src/App.js with following:
+Replace App.js with following:
 ```javascript
+// src/App.js
+
 import React from 'react';
 import './App.css';
 import {Provider} from 'react-redux';
@@ -152,10 +160,10 @@ npm start
 
 At this point, all we've done is setup our environment to support react and redux using steps similar to what you would find in any redux tutorial.  Now we will get into adding functionality using create-redux-module.
 
-To start things off, we will create a redux reducer that allows decrementing/incrementing a count.
-
-Create src/components/Counter/modules.js:
+To start things off, we will create a redux reducer that allows decrementing/incrementing a count:
 ```javascript
+// src/components/Counter/modules.js
+
 import createModule from 'create-redux-module';
 
 const initialState = 0;
@@ -174,14 +182,16 @@ As I said before, I prefer grouping by feature which means putting my dumb compo
 Notes:
 - The decrement and increment keys in the schema will be how the actions are called in the rest of the application. create-redux-module will convert myVeryUsefulAction to an action type of 'MY_VERY_USEFUL_ACTION'.
 - The function following the key is the handler and needs to be a pure function as mandated by [redux](http://redux.js.org/docs/introduction/ThreePrinciples.html). There are two other valid formats for the schema values which we will see later, but if the schema value is a function, the action creator will default to `(...args) => ({type, payload})`.
-- If no arguments are supplied when calling the action creator, there will be no payload. If one argument, the payload will be that argument, and if more than one argument, the payload will be an array of the arguments. In general, create-redux-module tries to follow the spirit of (Flux Standard Actions)[https://github.com/acdlite/flux-standard-action].
+- If no arguments are supplied when calling the action creator, there will be no payload. If one argument, the payload will be that argument, and if more than one argument, the payload will be an array of the arguments. In general, create-redux-module tries to follow the spirit of [Flux Standard Actions](https://github.com/acdlite/flux-standard-action).
 - The first argument to createModule ('counter') is the module name and is used by create-redux-module to optionally namespace actions. It should should be unique within the application (but this is not enforced). create-redux-module originally created application unique IDs automatically, but it seemed like overkill and made the actions as seen in redux devtools less readable.
 - The module that is created is simply an object with the following keys: `{actions, reducer, mapDispatch, test}`. The reducer is a combination of all the state handlers, and will simply return the state for any action types that it does not recognize.
 - When using create-redux-module, it is very useful to export the entire module (or modules) rather than just the reducer as you would see in other redux examples, but you don't have to do it this way.
 - My preference is to NOT export the module as default because there are situations where I may want to export more than one module based on the same schema.
 
-Now, we just need to add the module to our rootReducer (src/components/reducer.js):
+Now, we just need to add the module to our rootReducer:
 ```javascript
+// src/components/reducer.js
+
 import {counter} from './Counter/modules';
 
 const rootReducer = counter.reducer;
@@ -190,6 +200,8 @@ export default rootReducer;
 ```
 In theory, we should be good to go. Let's do a quick check and add the following line to the end of the reducer.js file:
 ```javascript
+// ...
+
 window.counter = counter.actions;
 ```
 Since we already exposed the store to the window in store.js, we should be able to open the Chrome Developer Tools console (hereafter, simply called console) and type `counter.increment()` and we should get `Object {type: "INCREMENT"}` in return. Cool. Let's open Redux DevTools, click on the State tab, and issue the following from the console:
@@ -197,8 +209,9 @@ Since we already exposed the store to the window in store.js, we should be able 
 store.dispatch(counter.increment())
 ```
 ...and in Redux DevTools we see that the state is "[object Object]1". Not cool. JavaScript's weak type checking bites again. This happened because we called configureStore from index.js without any arguments, so the inital state defaulted to an empty object. We then tried to update the state by adding 1. Typing `({} + 1)` into the console gives the same result. We could fix this by 1) calling configureStore with a 0, or 2) changing the default to a 0, or 3) not messing with either and realize that we will probably want to use redux's combineReducers later on so that we can keep our modules (and reducers) nicely organized. Easy enough:
-src/components/reducer.js
 ```javascript
+// src/components/reducer.js
+
 import {combineReducers} from 'redux';
 import {counter} from './Counter/modules';
 
@@ -209,8 +222,10 @@ const rootReducer = combineReducers({
 export default rootReducer;
 window.counter = counter.actions;
 ```
-It looks better already because we now see that the state has defaulted to `{counter: 0}`. Now when we `store.dispatch(counter.increment())` from the console, we see that the state is indeed `{counter: 1}`. But we can do even better. create-redux-module includes a `modulesToReducers` helper function which comes with a few benefits. Change src/components/reducer.js (and get rid of the `window.counter = counter.actions;` line):
+It looks better already because we now see that the state has defaulted to `{counter: 0}`. Now when we `store.dispatch(counter.increment())` from the console, we see that the state is indeed `{counter: 1}`. But we can do even better. create-redux-module includes a `modulesToReducers` helper function which comes with a few benefits. Change the reducer (and get rid of the `window.counter = counter.actions;` line):
 ```javascript
+// src/components/reducer.js
+
 import {combineReducers} from 'redux';
 import {modulesToReducers} from 'create-redux-module';
 import {counter} from './Counter/modules';
@@ -225,8 +240,9 @@ export default rootReducer;
 Now in the console, we can simply type `counter.increment()` and see that Redux DevTools shows the correct state. We no longer need to wrap the action creator with `store.dispatch`. This is nice because we can now easily test our reducers from the console without ever touching the UI.
 
 Notice that when you typed `counter.increment()` in the console, it returned `[0, {"type":"INCREMENT"}, 1]` (or something similar, depending on how many times you've called the action creator). If you guessed that this is a stringified representation of [oldState, action, newState], you'd be right. But we already have the awesome Redux DevTools, how is this useful? Let's go back to our counter module and add the following to the end:
-src/components/Counter/modules.js
 ```javascript
+// src/components/Counter/modules.js
+
 // ...
 
 counter.test(
@@ -240,16 +256,21 @@ counter.decrement()
 ```
 Simply copy and paste this line into the counter test:
 ```javascript
+// src/components/Counter/modules.js
+
+// ...
+
 counter.test(
     [0, {"type":"INCREMENT"}, 1]
     ,[0, {"type":"DECREMENT"}, -1]
 );
 ```
-Like with exposing the store to the window object, you may not want to do this in production, or maybe you want to consolidate all the reducer tests in one file, or maybe testing isn't your thing, or this form of testing is beneath you because you use sophisticated test frameworks. Do whatever you want. It's just another tool you can add to your utility belt to easily catch regression errors. Note that this test function only works with single dispatch, synchronous functions. If that doesn't meet your needs, use an actual testing framework like Mocha.
+As with exposing the store to the window object, you may not want to do this in production, or maybe you want to consolidate all the reducer tests in one file, or maybe testing isn't your thing, or this form of testing is beneath you because you use sophisticated test frameworks. Do whatever you want. It's just another tool you can add to your utility belt to easily catch regression errors. Note that this test function only works with single dispatch, synchronous functions. If that doesn't meet your needs, use an actual testing framework like Mocha.
 
 Let's try adding arguments to the action creators:
-src/components/Counter/modules.js
 ```javascript
+// src/components/Counter/modules.js
+
 import createModule from 'create-redux-module';
 
 const initialState = 0;
@@ -274,8 +295,9 @@ counter.decrement(3)
 ```
 
 So far, we've been using create-redux-module's default action creator. Let's add an incrementBySquare action creator. One approach would be:
-src/components/Counter/modules.js
 ```javascript
+// src/components/Counter/modules.js
+
 import createModule from 'create-redux-module';
 
 const initialState = 0;
@@ -299,8 +321,9 @@ Notes:
 - Since arrow functions (() => {}) do not allow binding variables, we need to use a function expression which allows create-redux-module to bind various values to the action creator's `this` operator. Those values are: moduleName (1st argument to createModule), baseType (the type without a namespace), type, actionName, and actions (a reference to the other actions in the schema). Notice that we are using `this.type` for the type. You may try to be clever and guess at the string ('INCREMENT_BY_SQUARE'), but you're better off just using the bound type that is provided by create-redux-module.
 
 You may be wondering, if a reference to the other module actions are bound to the `this` operator, can I call another action creator from the current action creator? Absolutely!
-src/components/Counter/modules.js
 ```javascript
+// src/components/Counter/modules.js
+
 import createModule from 'create-redux-module';
 
 const initialState = 0;
@@ -323,8 +346,9 @@ export const counter = createModule('counter', schema, initialState);
 Remember to `return` the call to the function since action creators just return action objects. Here, we've returned the default action creator for increment (all we defined for increment was the handler). One thing to note is that the console now logged a test array for the increment function because we're returning the result of that function. If that's not what you want, use the previous example instead.
 
 Most other redux counter examples that you run across also include an incrementAsync function. Let's give that a try:
-src/components/Counter/modules.js
 ```javascript
+// src/components/Counter/modules.js
+
 import createModule from 'create-redux-module';
 
 const initialState = 0;
@@ -348,8 +372,9 @@ export const counter = createModule('counter', schema, initialState);
 We are using [redux-thunk](https://github.com/gaearon/redux-thunk) to return a function that includes `dispatch` and `getState` arguments. This gives us the ability to dispatch multiple actions from one action creator, and in this case, to delay the dispatch.
 
 Before moving on to the UI, let's try one more example that uses promises. In our components/Counter folder (or perhaps a services folder located at the root), let's create a mock http service.
-src/components/Counter/countService.js
 ```javascript
+// src/components/Counter/countService.js
+
 // simulate a call to an unreliable service
 export const unreliableGetCount = (thisNeedsToWork = false) =>
     new Promise((resolve, reject) => {
@@ -365,8 +390,9 @@ export const unreliableGetCount = (thisNeedsToWork = false) =>
 ```
 
 Next, we will modify the schema to support our new promise action creator. Since we are dealing with create-redux-module's way of handling promises, we are going to convert our state from an integer to an object with a count property.  We will see that create-redux-module will apply additional pending, args, result, and error properties as well.
-src/components/Counter/modules.js
 ```javascript
+// src/components/Counter/modules.js
+
 import createModule from 'create-redux-module';
 
 import {unreliableGetCount} from './countService';
@@ -397,8 +423,9 @@ Since our unreliableGetCount service can optionally take an argument,
 we see that the argument is added to the args property when we call `counter.getExternalCount(true)`.
 
 We can also optionally supply a success and/or failure property to the schema promise object. Suppose that on success, we want to set the count to the result, and on failure, we want to set the count to 0.
-src/components/Counter/modules.js
 ```javascript
+// src/components/Counter/modules.js
+
 import createModule from 'create-redux-module';
 
 import {unreliableGetCount} from './countService';
@@ -420,8 +447,9 @@ export const counter = createModule('counter', schema, initialState);
 ```
 
 OK, time to add a UI to our example. Let start with the dumb component:
-src/components/Counter/index.js
 ```javascript
+// src/components/Counter/index.js
+
 import React from 'react';
 
 const Counter = ({count}) => (
@@ -435,8 +463,9 @@ export default Counter;
 ```
 
 And the container:
-src/components/Counter/container.js
 ```javascript
+// src/components/Counter/container.js
+
 import {connect} from 'react-redux';
 import Counter from '.';
 
@@ -449,6 +478,8 @@ export default Container;
 
 And finally, import the Counter into src/App.js
 ```javascript
+// src/App.js
+
 import React from 'react';
 import './App.css';
 import {Provider} from 'react-redux';
@@ -466,8 +497,9 @@ export default App;
 You should now see the counter in your browser with a count of 0. We haven't added any controls to the page yet, but we can still modify the state as we've already seen. Go ahead and issue a `counter.increment()` from the console to verify everything is working. The fact that redux (with a little help from create-redux-module) let us implement all the logic of our counter example without messing with the UI is, to me, one of the coolest things about redux. Our UI is very loosely coupled to the our reducer logic. Have fun doing that in jQuery.
 
 Let's add some controls.
-src/components/Counter/index.js
 ```javascript
+// src/components/Counter/index.js
+
 import React from 'react';
 
 const Counter = ({
@@ -486,8 +518,9 @@ const Counter = ({
 export default Counter;
 ```
 
-src/components/Counter/container.js
 ```javascript
+// src/components/Counter/container.js
+
 import {connect} from 'react-redux';
 import {counter} from './modules';
 import Counter from '.';
@@ -506,8 +539,9 @@ export default Container;
 You should now be able to change the count from the UI or the console and observe everything in Redux DevTools. Thank you redux!
 
 Let's add the rest of our controls to the UI and show a pending message if we getExternalCount:
-src/components/Counter/index.js
 ```javascript
+// src/components/Counter/index.js
+
 import React from 'react';
 
 const Counter = ({
@@ -534,8 +568,9 @@ const Counter = ({
 export default Counter;
 ```
 
-src/components/Counter/container.js
 ```javascript
+// src/components/Counter/container.js
+
 import {connect} from 'react-redux';
 import {counter} from './modules';
 import Counter from '.';
@@ -559,8 +594,9 @@ export default Container;
 Again, we can dispatch actions from the UI or the console. Enjoy the awesomeness of it all, I'll wait.
 
 One thing that bugs me about the container is that it seems rather verbose. We've already defined the essence of how these actions should work in the modules.js file, but here we are wrapping all the actions in a mapDispatchToProps function which adds very little new information. It's good to understand how standard mapDispatchToProps works if we need it for some weird reason, but is there anything create-redux-module can do to help? Of course...
-src/components/Counter/container.js
 ```javascript
+// src/components/Counter/container.js
+
 import {connect} from 'react-redux';
 import {counter} from './modules';
 import Counter from '.';
@@ -576,8 +612,9 @@ export const Container = connect(
 export default Container;
 ```
 Much better. Notice that mapDispatch is a function, not a property. Now let's pretend that you wanted to pre-bind a value to the increment action from the container rather than hard-coding the value in the UI (seems a little contrived, but this entire example is contrived). You'd have to go back to the previous long-hand version, right? Nope, we can pass an object to the mapDispatch function where the keys are the action creators, and the value is an array of arguments (or just an argument if only one) that will be applied to the action creator. Let's try it:
-src/components/Counter/container.js
 ```javascript
+// src/components/Counter/container.js
+
 import {connect} from 'react-redux';
 import {counter} from './modules';
 import Counter from '.';
@@ -594,8 +631,9 @@ export default Container;
 ```
 
 Redux's connect function allows for an optional `ownProps` argument. We can do the same thing here. Let's say that we want to add an `increment-amount` attribute to the Counter itself...
-src/components/Counter/container.js
 ```javascript
+// src/components/Counter/container.js
+
 import {connect} from 'react-redux';
 import {counter} from './modules';
 import Counter from '.';
@@ -610,8 +648,9 @@ export const Container = connect(
 
 export default Container;
 ```
-src/App.js
 ```javascript
+// src/App.js
+
 import React from 'react';
 import './App.css';
 import {Provider} from 'react-redux';
@@ -628,13 +667,16 @@ export default App;
 Awesome!
 
 That just about covers everything. I hope you've had the patience to follow along and get many of your questions answered. I'm going to go grab a beer and... What's that you say? You want to be able to have multiple counters on the same page? Well that's just crazy talk, but if you insist... Let's go back to the modules file and add a second module:
-src/components/Counter/modules.js
 ```javascript
+// src/components/Counter/modules.js
+
 // ...
 export const counter2 = createModule('counter2', schema, initialState);
 ```
-And we'll have to update components/reducer.js:
+And we'll have to update the root reducer:
 ```javascript
+// components/reducer.js
+
 import {combineReducers} from 'redux';
 import {modulesToReducers} from 'create-redux-module';
 import {counter, counter2} from './Counter/modules';
@@ -659,8 +701,9 @@ Before we go any further, let's make sure everything is working from the console
 }
 ```
 That was easy. And now to try dispatching `counter2.increment()` from the console. Uh oh. It looks like the actions dispatched from one module are affecting both modules. Well, that is the way redux is designed to work (listen for actions that you recognize, pass on the ones you don't recognize). But that's probably not what we want. I suppose we could create a second schema with unique action names (that do the same thing), but that would be silly. Instead, we can easily fix the problem by namespacing the action types.
-src/components/Counter/modules.js
 ```javascript
+// src/components/Counter/modules.js
+
 // ...
 export const counter = createModule('counter', schema, initialState, true);
 
@@ -669,8 +712,9 @@ export const counter2 = createModule('counter2', schema, initialState, true);
 The 4th parameter set to `true` will result in action types of the form 'counter/INCREMENT', 'counter2/INCREMENT', etc. Just what we want. Now when we try dispatching actions from the console, everything behaves as expected.
 
 And now for some quick updates to the container (which for brevity, we'll change to a combination smart/dumb component) and import React.
-src/components/Counter/container.js
 ```javascript
+// src/components/Counter/container.js
+
 import React from 'react';
 import {connect} from 'react-redux';
 import {counter, counter2} from './modules';
@@ -702,8 +746,9 @@ const Counters = () => (
 export default Counters;
 ```
 
-src/App.js
 ```javascript
+// src/App.js
+
 import React from 'react';
 import './App.css';
 import {Provider} from 'react-redux';
@@ -717,9 +762,10 @@ const App = ({store}) => (
 
 export default App;
 ```
-Easy. What if you only wanted to namespace the decrement action, and have the others act globally? We can do that too.
-src/components/Counter/modules.js
+Easy. What if you only wanted to namespace the decrement action, and have the others act globally? We can do that too by passing the name of the action (or array of action names) as the 4th argument.
 ```javascript
+// src/components/Counter/modules.js
+
 // ...
 export const counter = createModule('counter', schema, initialState, ['decrement']);
 
