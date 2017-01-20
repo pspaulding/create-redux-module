@@ -1,6 +1,6 @@
 {
   "name": "create-redux-module",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Helper to create redux namespaced action creators & reducers with minimal boilerplate. Easily use promise based services (API calls, for example) from the actions.",
   "main": "lib/index.js",
   "scripts": {
