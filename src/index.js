@@ -7,7 +7,7 @@ const createActionCreator = actionType => (...args) => {
     const hasError = args[0] instanceof Error;
     const action = {type: actionType};
     const payload = hasError ? args[0] : args;
-    if (payload !== void 0) {
+    if (payload !== void 0 && payload.length > 0) {
         action.payload = payload.length == 1
             ? payload[0]
             : payload;
@@ -35,7 +35,8 @@ function createSchemaPendingEntry() {
         ,state
         ,{
             pending: true
-            ,data: action.payload
+            ,args: action.payload
+            ,result: null
             ,error: null
         }
     );
@@ -81,7 +82,7 @@ function createSchemaSuccessEntry(def, successActionName) {
             ,state
             ,{
                 pending: false
-                ,data: action.payload
+                ,result: action.payload
                 ,error: action.error
             }
         )
@@ -107,6 +108,7 @@ function createSchemaFailureEntry(def, failureActionName) {
             ,state
             ,{
                 pending: false
+                ,result: null
                 ,error: action.error
             }
         )
@@ -210,7 +212,7 @@ const createModule = (moduleName, schema = {}, initialState = null, namespaceAct
             assert.deepEqual(
                 reducer(initialState, action)
                 ,newState
-                ,'reducer'
+                ,moduleName + '.reducer'
                     + `(${JSON.stringify(initialState)}`
                     + `, ${JSON.stringify(action)}) !== `
                     + `${JSON.stringify(newState)}`
@@ -271,12 +273,14 @@ export const modulesToReducers = modules => {
                     let action = modules[m].actions[actionName](...args);
                     window.store.dispatch(action);
                     let newState = store.getState()[m];
-                    // use this for quick built-in tests :)
-                    console.log(
-                        `[${JSON.stringify(initialState)}`
-                        + `, ${JSON.stringify(action)}`
-                        + `, ${JSON.stringify(newState)}]`
-                    );
+                    if (typeof action !== 'function') {
+                        // use this for quick built-in tests :)
+                        console.log(
+                            `[${JSON.stringify(initialState)}`
+                            + `, ${JSON.stringify(action)}`
+                            + `, ${JSON.stringify(newState)}]`
+                        );
+                    }
                 } else {
                     console.warn('Unable to dispatch actions from console.'
                         + ' Please attach the store to the window object'
