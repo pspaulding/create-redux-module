@@ -1,4 +1,4 @@
-If you are unfamiliar with redux, then why are you here? Checkout (redux)[http://redux.js.org/] and come back when done.
+If you are unfamiliar with redux, then why are you here? Checkout [redux](http://redux.js.org/) and come back when done.
 
 Installation
 ---
@@ -112,7 +112,7 @@ export default configureStore;
 ```
 Notice that we've attached the redux store to the window object. This is for development purposes only (we'll see why in a bit). I don't know if there are any issues with leaving it like this in a production build, but I conditionally run this line using a webpack `__DEV__` variable in my own setup. Handle it however you see fit.
 
-I've also included the awesome (chrome redux devtools)[https://chrome.google.com/webstore/detail/redux-devtools/lmhkpmbekcpmknklioeibfkpmmfibljd?hl=en] in this store config.
+I've also included the awesome [chrome redux devtools](https://chrome.google.com/webstore/detail/redux-devtools/lmhkpmbekcpmknklioeibfkpmmfibljd?hl=en) in this store config.
 
 Edit src/index.js:
 ```javascript
@@ -173,7 +173,7 @@ As I said before, I prefer grouping by feature which means putting my dumb compo
 
 Notes:
 - The decrement and increment keys in the schema will be how the actions are called in the rest of the application. create-redux-module will convert myVeryUsefulAction to an action type of 'MY_VERY_USEFUL_ACTION'.
-- The function following the key is the handler and needs to be a pure function as mandated by (redux)[http://redux.js.org/docs/introduction/ThreePrinciples.html]. There are two other valid formats for the schema values which we will see later, but if the schema value is a function, the action creator will default to `(...args) => ({type, payload})`.
+- The function following the key is the handler and needs to be a pure function as mandated by [redux](http://redux.js.org/docs/introduction/ThreePrinciples.html). There are two other valid formats for the schema values which we will see later, but if the schema value is a function, the action creator will default to `(...args) => ({type, payload})`.
 - If no arguments are supplied when calling the action creator, there will be no payload. If one argument, the payload will be that argument, and if more than one argument, the payload will be an array of the arguments. In general, create-redux-module tries to follow the spirit of (Flux Standard Actions)[https://github.com/acdlite/flux-standard-action].
 - The first argument to createModule ('counter') is the module name and is used by create-redux-module to optionally namespace actions. It should should be unique within the application (but this is not enforced). create-redux-module originally created application unique IDs automatically, but it seemed like overkill and made the actions as seen in redux devtools less readable.
 - The module that is created is simply an object with the following keys: `{actions, reducer, mapDispatch, test}`. The reducer is a combination of all the state handlers, and will simply return the state for any action types that it does not recognize.
@@ -345,7 +345,7 @@ const schema = {
 
 export const counter = createModule('counter', schema, initialState);
 ```
-We are using (redux-thunk)[https://github.com/gaearon/redux-thunk] to return a function that includes `dispatch` and `getState` arguments. This gives us the ability to dispatch multiple actions from one action creator, and in this case, to delay the dispatch.
+We are using [redux-thunk](https://github.com/gaearon/redux-thunk) to return a function that includes `dispatch` and `getState` arguments. This gives us the ability to dispatch multiple actions from one action creator, and in this case, to delay the dispatch.
 
 Before moving on to the UI, let's try one more example that uses promises. In our components/Counter folder (or perhaps a services folder located at the root), let's create a mock http service.
 src/components/Counter/countService.js
