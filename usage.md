@@ -385,12 +385,14 @@ const schema = {
 export const counter = createModule('counter', schema, initialState);
 ```
 Now when we call `counter.getExternalCount()` from the console and monitor the state in Redux DevTools, we see that create-redux-module has explicitly added a new 'GET_EXTERNAL_COUNT_PENDING' action which is followed by either a 'GET_EXTERNAL_COUNT_SUCCESS' action (if we're lucky), or a 'GET_EXTERNAL_COUNT_FAILURE' action. In addition, the state is augmented with `{pending, args, result, error}`. The expected values in each state are:
+
 | Property | ACTION_PENDING | ACTION_SUCCESS | ACTION_FAILURE |
 | -------- | -------------- | -------------- | -------------- |
 | pending  | true           | false          | false          |
 | args     | [...args]      | [...args]      | [...args]      |
 | result   | null           | resolve value  | null           |
 | error    | null           | null           | reject value   |
+
 Since our unreliableGetCount service can optionally take an argument,
 we see that the argument is added to the args property when we call `counter.getExternalCount(true)`.
 
