@@ -269,9 +269,10 @@ export const modulesToReducers = modules => {
     for (let m in modules) {
         reducers[m] = modules[m].reducer;
 
-        window[m] = {};
+        let windowName = m == 'location' ? '_location' : m;
+        window[windowName] = {};
         Object.keys(modules[m].actions).forEach(actionName => {
-            window[m][actionName] = function (...args) {
+            window[windowName][actionName] = function (...args) {
                 if (window.store) {
                     let initialState = store.getState()[m];
                     let action = modules[m].actions[actionName](...args);
