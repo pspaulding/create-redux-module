@@ -299,7 +299,7 @@ export const modulesToReducers = modules => {
 
     if (Object.keys(reducers).length == 0) {
         // create a default reducer
-        reducers.default = state => state;
+        reducers.default = state => null;
     }
 
     return reducers;
