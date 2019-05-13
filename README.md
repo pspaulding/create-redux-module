@@ -35,10 +35,18 @@ import createModule from 'create-redux-module';
 
 const schema = {
   decrement: (state, action) => state - action.payload
-  ,increment: (state, action) => state + action.payload
+  , increment: (state, action) => state + action.payload
 };
 
 export const counter = createModule('counter', schema, 0);
 ```
 
 [Usage](https://github.com/pspaulding/create-redux-module/blob/master/usage.md)
+
+Changes
+---
+
+v2.0.0
+- Removed Promise object notation.  Unnecessary and easily achieved using Redux-Thunk + async functions.
+- Added shorthand to specify actionCreator object properties with an array.
+- Now uses immerjs behind the scenes, reducers can return a new state as before (classic), or mutate a draft state which gets converted to a new state by immerjs.

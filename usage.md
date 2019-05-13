@@ -35,22 +35,24 @@ schema: {
     //   ,actionName  (as provided)
     //   ,actions     (ref to other schema actions for additional dispatching)
     // }
-    function (arguments) {
+    function (foo, bar, baz) {
+      // payload = [foo, bar, baz]
       return {type: this.type, payload};
     }
+
     // handler
     ,(state, action) => {}
     // if action creator or handler are null, they will default as above
   ]
 
-  // Promise object
-  ,actionName3: {
-    promise: (required)
-    ,success: (if provided, will be wrapped with an action return)
-    ,failure: (if provided, will be wrapped with an action return)
-  }
+  ,actionName2ShortHandVersion: [
+      ['foo', 'bar', 'baz=3']   // baz defaults to 3
+      ,(state, {foo, bar, baz}) => {}
+  ]
 }
 ```
+New in 2.0:
+Reducers can return a new state as before (classic), or mutate a draft state which gets converted to a new state by immerjs.
 
 Call createModule as follows:
 ```javascript
@@ -187,7 +189,6 @@ const schema = {
 
 export const counter = createModule('counter', schema, initialState);
 ```
-As I said before, I prefer grouping by feature which means putting my dumb components, containers, modules (reducers) in one folder. As such, I like to use pascal-cased folders under components that contain the modules.js file (among other things). I call it modules.js (plural) because it is more than a reducer (as you will see), and it may export more than one module. You do not have to use this convention, and you can use a Rails approach and group by file type if that's your preference.
 
 Notes:
 - The decrement and increment keys in the schema will be how the actions are called in the rest of the application. create-redux-module will convert myVeryUsefulAction to an action type of 'MY_VERY_USEFUL_ACTION'.
@@ -281,7 +282,7 @@ counter.test(
     ,[0, {"type":"DECREMENT"}, -1]
 );
 ```
-As with exposing the store to the window object, you may not want to do this in production, or maybe you want to consolidate all the reducer tests in one file, or maybe testing isn't your thing, or this form of testing is beneath you because you use sophisticated test frameworks. Do whatever you want. It's just another tool you can add to your utility belt to easily catch regression errors. Note that this test function only works with single dispatch, synchronous functions. If that doesn't meet your needs, use an actual testing framework like Mocha.
+As with exposing the store to the window object, you may not want to do this in production, or maybe you want to consolidate all the reducer tests in one file, or maybe testing isn't your thing, or this form of testing is beneath you because you use sophisticated test frameworks. Do whatever you want. It's just another tool you can add to your utility belt to easily catch regression errors. Note that this test function only works with single dispatch, synchronous functions. If that doesn't meet your needs, use a testing framework.
 
 Let's try adding arguments to the action creators:
 ```javascript
@@ -393,83 +394,6 @@ export const counter = createModule('counter', schema, initialState);
 ```
 We are using [redux-thunk](https://github.com/gaearon/redux-thunk) to return a function that includes `dispatch` and `getState` arguments. This gives us the ability to dispatch multiple actions from one action creator, and in this case, to delay the dispatch.
 
-### Promises
-
-Before moving on to the UI, let's try one more example that uses promises. In our components/Counter folder (or perhaps a services folder located at the root), let's create a mock http service.
-```javascript
-// src/components/Counter/countService.js
-
-// simulate a call to an unreliable service
-export const unreliableGetCount = (thisNeedsToWork = false) =>
-    new Promise((resolve, reject) => {
-        if (thisNeedsToWork || Math.random() > .5) {
-            // success
-            var count = parseInt(Math.random() * 100, 10);
-            setTimeout(() => resolve(count), 3000);
-        } else {
-            // failure
-            setTimeout(() => reject('Unable to reach server'), 3000);
-        }
-    });
-```
-
-Next, we will modify the schema to support our new promise action creator. Since we are dealing with create-redux-module's way of handling promises, we are going to convert our state from an integer to an object with a count property.  We will see that create-redux-module will apply additional pending, args, result, and error properties as well.
-```javascript
-// src/components/Counter/modules.js
-
-import createModule from 'create-redux-module';
-
-import {unreliableGetCount} from './countService';
-
-const initialState = {count: 0};
-
-const schema = {
-
-    // ...
-
-    ,getExternalCount: {
-        promise: unreliableGetCount
-    }
-};
-
-export const counter = createModule('counter', schema, initialState);
-```
-Now when we call `counter.getExternalCount()` from the console and monitor the state in Redux DevTools, we see that create-redux-module has explicitly added a new 'GET_EXTERNAL_COUNT_PENDING' action which is followed by either a 'GET_EXTERNAL_COUNT_SUCCESS' action (if we're lucky), or a 'GET_EXTERNAL_COUNT_FAILURE' action. In addition, the state is augmented with `{pending, args, result, error}`. The expected values in each state are:
-
-| Property | ACTION_PENDING | ACTION_SUCCESS | ACTION_FAILURE |
-| -------- | -------------- | -------------- | -------------- |
-| pending  | true           | false          | false          |
-| args     | [...args]      | [...args]      | [...args]      |
-| result   | null           | resolve value  | null           |
-| error    | null           | null           | reject value   |
-
-Since our unreliableGetCount service can optionally take an argument,
-we see that the argument is added to the args property when we call `counter.getExternalCount(true)`.
-
-We can also optionally supply a success and/or failure property to the schema promise object. Suppose that on success, we want to set the count to the result, and on failure, we want to set the count to 0.
-```javascript
-// src/components/Counter/modules.js
-
-import createModule from 'create-redux-module';
-
-import {unreliableGetCount} from './countService';
-
-const initialState = {count: 0};
-
-const schema = {
-
-    // ...
-
-    ,getExternalCount: {
-        promise: unreliableGetCount
-        ,success: (state, action) => ({...state, count: action.payload})
-        ,failure: (state, action) => ({...state, count: 0})
-    }
-};
-
-export const counter = createModule('counter', schema, initialState);
-```
-
 ### User Interface
 
 OK, time to add a UI to our example. Let start with the dumb component:
@@ -520,7 +444,7 @@ const App = ({store}) => (
 export default App;
 ```
 
-You should now see the counter in your browser with a count of 0. We haven't added any controls to the page yet, but we can still modify the state as we've already seen. Go ahead and issue a `counter.increment()` from the console to verify everything is working. The fact that redux (with a little help from create-redux-module) let us implement all the logic of our counter example without messing with the UI is, to me, one of the coolest things about redux. Our UI is very loosely coupled to the our reducer logic. Have fun doing that in jQuery.
+You should now see the counter in your browser with a count of 0. We haven't added any controls to the page yet, but we can still modify the state as we've already seen. Go ahead and issue a `counter.increment()` from the console to verify everything is working. The fact that redux (with a little help from create-redux-module) let us implement all the logic of our counter example without messing with the UI is, to me, one of the coolest things about redux. Our UI is very loosely coupled to the our reducer logic.
 
 ### Controls
 
@@ -574,12 +498,10 @@ import React from 'react';
 
 const Counter = ({
     count
-    ,pending
     ,decrement
     ,increment
     ,incrementBySquare
     ,incrementAsync
-    ,getExternalCount
 }) => (
     <div>
         <h2>Counter</h2>
@@ -588,8 +510,6 @@ const Counter = ({
         <button onClick={()=>increment()}>increment</button>
         <button onClick={()=>incrementBySquare(3)}>incrementBySquare (3)</button>
         <button onClick={()=>incrementAsync()}>incrementAsync</button>
-        <button onClick={()=>getExternalCount()}>getExternalCount</button>
-        {pending && ' pending'}
     </div>
 );
 
@@ -613,7 +533,6 @@ export const Container = connect(
         ,increment: (amount) => dispatch(counter.actions.increment(amount))
         ,incrementBySquare: (amount) => dispatch(counter.actions.incrementBySquare(amount))
         ,incrementAsync: (amount) => dispatch(counter.actions.incrementAsync(amount))
-        ,getExternalCount: (amount) => dispatch(counter.actions.getExternalCount(amount))
     })
     )(Counter);
 
@@ -641,7 +560,8 @@ export const Container = connect(
 
 export default Container;
 ```
-Much better. Notice that mapDispatch is a function, not a property. Now let's pretend that you wanted to pre-bind a value to the increment action from the container rather than hard-coding the value in the UI (seems a little contrived, but this entire example is contrived). You'd have to go back to the previous long-hand version, right? Nope, we can pass an object to the mapDispatch function where the keys are the action creators, and the value is an array of arguments (or just an argument if only one) that will be applied to the action creator. Let's try it:
+
+Notice that mapDispatch is a function, not a property. Now let's pretend that you wanted to pre-bind a value to the increment action from the container rather than hard-coding the value in the UI (seems a little contrived, but this entire example is contrived). We can pass an object to the mapDispatch function where the keys are the action creators, and the value is an array of arguments (or just an argument if only one) that will be applied to the action creator:
 ```javascript
 // src/components/Counter/container.js
 
@@ -696,9 +616,6 @@ const App = ({store}) => (
 
 export default App;
 ```
-Awesome!
-
-That just about covers everything. I hope you've had the patience to follow along and get many of your questions answered. I'm going to go grab a beer and... What's that you say? You want to be able to have multiple counters on the same page? Well that's just crazy talk, but if you insist...
 
 ### One Schema --> Multiple Modules
 
@@ -736,7 +653,7 @@ Before we go any further, let's make sure everything is working from the console
   }
 }
 ```
-That was easy. And now to try dispatching `counter2.increment()` from the console. Uh oh. It looks like the actions dispatched from one module are affecting both modules. Well, that is the way redux is designed to work (listen for actions that you recognize, pass on the ones you don't recognize). But that's probably not what we want. I suppose we could create a second schema with unique action names (that do the same thing), but that would be silly. Instead, we can easily fix the problem by namespacing the action types.
+That was easy. And now to try dispatching `counter2.increment()` from the console. Uh oh. It looks like the actions dispatched from one module are affecting both modules. Well, that is the way redux is designed to work (listen for actions that you recognize, pass on the ones you don't recognize). But that's probably not what we want. We could create a second schema with unique action names (that do the same thing), but that would be repetitious. Instead, we can easily fix the problem by namespacing the action types.
 
 #### Namespaced Action Types
 
