@@ -1,3 +1,5 @@
+### This library is no longer maintained.  If you want to use redux, I'd recommend https://redux-toolkit.js.org/
+
 Helper to create redux namespaced action creators & reducers with minimal boilerplate. Easily execute actions and run built-in reducer tests from the console during development, even before creating a UI.
 
 Go from this:
